@@ -1,0 +1,54 @@
+  GNU nano 8.3                                 PiBuffered.c
+        int packedSize;
+        MPI_Pack_size(
+            1, MPI_LONG_LONG_INT, MPI_COMM_WORLD, &packedSize
+        );
+
+        int bufferSize = packedSize + MPI_BSEND_OVERHEAD;
+        void *buffer = malloc(bufferSize);
+
+        if (buffer == NULL)
+            MPI_Abort(MPI_COMM_WORLD, 1);
+
+        MPI_Buffer_attach(buffer, bufferSize);
+
+        MPI_Bsend(
+            &localInside, 1, MPI_LONG_LONG_INT,
+            0, 0, MPI_COMM_WORLD
+        );
+
+        void *detachedBuffer;
+        int detachedSize;
+
+        MPI_Buffer_detach(&detachedBuffer, &detachedSize);
+        free(detachedBuffer);
+    }
+
+    double elapsed = MPI_Wtime() - startTime;
+    double maxElapsed = 0;
+
+    MPI_Reduce(
+        &elapsed, &maxElapsed, 1,
+        MPI_DOUBLE, MPI_MAX,
+        0, MPI_COMM_WORLD
+    );
+
+    char name[MPI_MAX_PROCESSOR_NAME];
+    int length;
+    MPI_Get_processor_name(name, &length);
+
+    printf("Rank %d on %s: trials = %lld, inside = %lld\n",
+           rank, name, localTrials, localInside);
+
+    if (rank == 0) {
+        double pi = 4.0 * (double)totalInside / totalTrials;
+
+        printf("Total trials = %lld\n", totalTrials);
+        printf("Estimated Pi = %.10f\n", pi);
+        printf("Elapsed time = %.6f seconds\n", maxElapsed);
+    }
+
+    MPI_Finalize();
+    return 0;
+}
+
